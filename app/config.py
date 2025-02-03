@@ -1,0 +1,19 @@
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Get the absolute path to the .env file
+env_path = Path(__file__).parent / '.env'
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path=env_path)
+
+# OpenAI Configuration
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise ValueError("OPENAI_API_KEY not found in environment variables. Please create a .env file with your API key.")
+
+# Model configurations
+MODEL_NAME = "gpt-4"  # or "gpt-3.5-turbo" for a more economical option
+EMBEDDING_MODEL = "text-embedding-ada-002"
+CHUNK_SIZE = 1000
