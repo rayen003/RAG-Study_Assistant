@@ -16,24 +16,52 @@ logger = logging.getLogger(__name__)
 
 # Add the parent directory to Python path for imports
 current_dir = Path(__file__).parent
-root_dir = current_dir.parent
-if str(root_dir) not in sys.path:
-    sys.path.append(str(root_dir))
+if str(current_dir) not in sys.path:
+    sys.path.append(str(current_dir))
 
-from rag import process_file, load_and_split_documents
-from config import UPLOAD_FOLDER
+from app.rag import process_file, load_and_split_documents
+from app.config import UPLOAD_FOLDER
 
 def create_test_pdf():
     """Create a test PDF document"""
     test_content = """
-    This is a test document for our Study Assistant.
-    It contains multiple paragraphs to test document splitting and processing.
+    Introduction to Machine Learning
     
-    Here's a second paragraph with some technical content.
-    We can use this to test our text extraction and chunking.
+    Machine learning is a branch of artificial intelligence that focuses on building applications that learn from data and improve their accuracy over time without being explicitly programmed to do so.
     
-    And a final paragraph to ensure we have enough content to test with.
-    This should give us multiple chunks to work with.
+    Types of Machine Learning
+    
+    1. Supervised Learning:
+    In supervised learning, the algorithm learns from labeled training data. Each example in the training dataset includes both input features and the desired output. The algorithm learns to map inputs to outputs.
+    
+    2. Unsupervised Learning:
+    Unsupervised learning algorithms work with unlabeled data. They try to find patterns and structures within the data without any predefined output to learn from. Common applications include clustering and dimensionality reduction.
+    
+    3. Reinforcement Learning:
+    This type of learning involves an agent that learns to make decisions by interacting with an environment. The agent receives rewards or penalties for its actions and learns to maximize the cumulative reward.
+    
+    Common Applications
+    
+    Machine learning has numerous real-world applications:
+    - Image and speech recognition
+    - Natural language processing
+    - Recommendation systems
+    - Autonomous vehicles
+    - Medical diagnosis
+    - Financial forecasting
+    
+    Best Practices
+    
+    When implementing machine learning solutions:
+    1. Start with clean, well-prepared data
+    2. Choose appropriate algorithms for your problem
+    3. Validate your models thoroughly
+    4. Monitor model performance in production
+    5. Regularly update and retrain models
+    
+    Conclusion
+    
+    Machine learning continues to evolve and find new applications across industries. Understanding its fundamentals is crucial for modern software development and data science.
     """
     
     pdf_path = os.path.join(UPLOAD_FOLDER, "test_document.pdf")

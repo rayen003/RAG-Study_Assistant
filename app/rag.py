@@ -12,8 +12,8 @@ import logging
 from pathlib import Path
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
 import hashlib
 
 # Configure logging
@@ -28,13 +28,15 @@ if str(root_dir) not in sys.path:
 
 # Try both import styles
 try:
-    from app.config import MODEL_NAME, EMBEDDING_MODEL
+    from app.config import MODEL_NAME, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP, USE_LOCAL_EMBEDDINGS
     from app.templates import TEMPLATES
     from app.memory_manager import MemoryManager
+    from app.embeddings import LocalEmbeddings
 except ModuleNotFoundError:
-    from config import MODEL_NAME, EMBEDDING_MODEL
+    from config import MODEL_NAME, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP, USE_LOCAL_EMBEDDINGS
     from templates import TEMPLATES
     from memory_manager import MemoryManager
+    from embeddings import LocalEmbeddings
 
 # Supported file extensions and their corresponding workflows
 FILE_TYPE_MAP = {
@@ -54,110 +56,67 @@ class FileInput(BaseModel):
     file_type: str
     filename: str
 
-# Constants for text splitting
-CHUNK_SIZE = 1000
-CHUNK_OVERLAP = 200
-
-# Create a persistent directory for the vector store
-PERSIST_DIR = Path(__file__).parent / "vector_store"
-PERSIST_DIR.mkdir(exist_ok=True)
-
 def get_document_hash(file_path):
     """Generate a unique hash for the document."""
     with open(file_path, 'rb') as f:
         return hashlib.md5(f.read()).hexdigest()
 
+def get_embeddings():
+    """Get the embedding model."""
+    return HuggingFaceEmbeddings(
+        model_name=EMBEDDING_MODEL,
+        model_kwargs={'device': 'cpu'},
+        encode_kwargs={'normalize_embeddings': True}  # Ensure consistent normalization
+    )
+
 def process_file(file_path):
-    """Process a file and store its embeddings."""
+    """Process a file and create a vector store."""
     try:
-        logger.info(f"Starting file processing for {file_path}")
-        start_time = time.time()
-
-        # Generate unique ID for this document
-        doc_id = get_document_hash(file_path)
-        persist_dir = PERSIST_DIR / doc_id
-
-        # Check if we already have embeddings
-        if persist_dir.exists():
-            logger.info("Found existing embeddings, skipping processing")
-            return True
-
-        # Load the document
-        logger.info("Loading document...")
+        # Load and split the document
         loader = PyPDFLoader(file_path)
         documents = loader.load()
-        logger.info(f"Document loaded with {len(documents)} pages")
-
-        # Split into chunks
-        logger.info("Splitting document into chunks...")
+        
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=CHUNK_SIZE,
-            chunk_overlap=CHUNK_OVERLAP,
-            separators=["\n\n", "\n", " ", ""]
+            chunk_overlap=CHUNK_OVERLAP
         )
         chunks = text_splitter.split_documents(documents)
-        logger.info(f"Document split into {len(chunks)} chunks")
-
-        # Create embeddings in batches
-        logger.info("Creating embeddings...")
-        embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
         
-        # Create vector store with persistence
-        vector_store = Chroma.from_documents(
-            chunks,
-            embeddings,
-            persist_directory=str(persist_dir)
-        )
+        if not chunks:
+            logger.error("No text chunks extracted from document")
+            return False
+            
+        # Get embeddings
+        embeddings = get_embeddings()
         
-        logger.info(f"File processing completed in {time.time() - start_time:.2f}s")
+        # Create vector store
+        vector_store = FAISS.from_documents(chunks, embeddings)
+        
+        # Save the vector store
+        vector_store_path = file_path + "_faiss"
+        vector_store.save_local(vector_store_path)
+        
         return True
-
+        
     except Exception as e:
         logger.error(f"Error processing file: {str(e)}")
-        if persist_dir.exists():
-            import shutil
-            shutil.rmtree(persist_dir)  # Clean up failed processing
-        raise
+        return False
 
-def load_and_split_documents(file_path):
-    """Load and split a document into chunks for retrieval."""
-    logger.info(f"Loading document from {file_path}")
-    
-    # Get document store path
-    doc_id = get_document_hash(file_path)
-    persist_dir = PERSIST_DIR / doc_id
-    
-    # Initialize embeddings
-    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
-    
-    # Load from existing store if available
-    if persist_dir.exists():
-        logger.info("Loading existing vector store")
-        return Chroma(
-            persist_directory=str(persist_dir),
-            embedding_function=embeddings
-        ).as_retriever()
-    
-    # Otherwise, create new embeddings
-    logger.info("Creating new vector store")
-    loader = PyPDFLoader(file_path)
-    documents = loader.load()
-    
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=CHUNK_SIZE,
-        chunk_overlap=CHUNK_OVERLAP,
-        separators=["\n\n", "\n", " ", ""]
-    )
-    chunks = text_splitter.split_documents(documents)
-    
-    # Create and persist vector store
-    vector_store = Chroma.from_documents(
-        chunks,
-        embeddings,
-        persist_directory=str(persist_dir)
-    )
-    
-    return vector_store.as_retriever()
+def load_vector_store(file_path):
+    """Load a vector store for a file."""
+    try:
+        vector_store_path = file_path + "_faiss"
+        if not os.path.exists(vector_store_path):
+            logger.error(f"Vector store not found at {vector_store_path}")
+            return None
+            
+        embeddings = get_embeddings()
+        vector_store = FAISS.load_local(vector_store_path, embeddings)
+        return vector_store
+        
+    except Exception as e:
+        logger.error(f"Error loading vector store: {str(e)}")
+        return None
 
 def detect_multimodal_query(query: str) -> bool:
     """Detect if a query requires multimodal processing."""
@@ -180,7 +139,15 @@ def execute_workflow(memory, question: str, file_path: str = None):
         
         if file_path:
             # Load document and get context
-            retriever = load_and_split_documents(file_path)
+            vector_store = load_vector_store(file_path)
+            if vector_store is None:
+                logger.error("Failed to load vector store")
+                return {
+                    "answer": "Error processing request",
+                    "chat_history": memory.load_memory_variables({}).get("chat_history", "")
+                }
+            
+            retriever = vector_store.as_retriever()
             docs = retriever.get_relevant_documents(question)
             context = "\n".join([doc.page_content for doc in docs])
             

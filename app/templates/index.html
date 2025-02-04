@@ -4,187 +4,162 @@
     <title>Study Assistant</title>
     <style>
         :root {
-            --primary-color: #10a37f;
-            --bg-color: #343541;
-            --sidebar-bg: #202123;
-            --nav-bg: #2d2d35;
-            --chat-bg: #444654;
-            --text-color: #ececf1;
-            --border-color: #40414f;
-            --secondary-text: #c5c5d2;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+            --primary-color: #1a1a1a;
+            --secondary-color: #2d2d2d;
+            --accent-color: #4CAF50;
+            --text-color: #ffffff;
+            --border-color: #404040;
+            --hover-color: #3d3d3d;
         }
 
         body {
-            height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--primary-color);
             color: var(--text-color);
-            display: flex;
+            line-height: 1.6;
         }
 
-        .workflow-panel {
-            width: 260px;
-            background-color: var(--sidebar-bg);
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 300px;
+            background-color: var(--secondary-color);
             padding: 20px;
             border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
         }
 
-        .workflow-title {
-            font-size: 14px;
-            color: var(--text-color);
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        #documents-list {
-            margin-top: 20px;
-        }
-
-        #uploaded-files {
-            list-style: none;
-            padding: 0;
-        }
-
-        #uploaded-files li {
-            padding: 8px;
-            margin: 4px 0;
-            background: var(--nav-bg);
-            border-radius: 4px;
-            font-size: 14px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .preview-btn {
-            background: var(--primary-color);
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            color: white;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .preview-btn:hover {
-            background: #0d8c6d;
-        }
-
         .main-content {
             flex: 1;
             display: flex;
             flex-direction: column;
-            position: relative;
+            background-color: var(--primary-color);
         }
 
         .chat-container {
             flex: 1;
             overflow-y: auto;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
         .message {
-            margin-bottom: 15px;
-            padding: 15px;
-            border-radius: 5px;
             max-width: 80%;
-            line-height: 1.5;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 4px 0;
         }
 
         .user-message {
-            background: var(--primary-color);
-            margin-left: auto;
+            background-color: var(--accent-color);
+            color: white;
+            align-self: flex-end;
         }
 
         .assistant-message {
-            background: var(--chat-bg);
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            align-self: flex-start;
         }
 
-        .chat-input {
-            display: flex;
+        .input-container {
             padding: 20px;
-            gap: 10px;
-            background: var(--nav-bg);
+            background-color: var(--secondary-color);
             border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 10px;
         }
 
         #user-input {
             flex: 1;
             padding: 12px;
             border: 1px solid var(--border-color);
-            border-radius: 5px;
-            background: var(--chat-bg);
+            border-radius: 8px;
+            background-color: var(--primary-color);
             color: var(--text-color);
             font-size: 14px;
+            resize: none;
+            min-height: 24px;
+            max-height: 150px;
         }
 
         button {
-            padding: 10px 20px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 5px;
-            background: var(--primary-color);
+            border-radius: 8px;
+            background-color: var(--accent-color);
             color: white;
             cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         button:hover {
-            background: #0d8c6d;
+            background-color: #45a049;
         }
 
-        .attach-button {
-            background: none;
-            color: var(--secondary-text);
-            font-size: 20px;
-            padding: 10px;
+        .documents-section {
+            margin-top: 20px;
         }
 
-        .attach-button:hover {
-            background: var(--chat-bg);
-        }
-
-        #status-steps {
+        #document-list {
+            list-style: none;
+            padding: 0;
             margin: 10px 0;
+        }
+
+        #document-list li {
+            background-color: var(--primary-color);
             padding: 10px;
-            background: var(--nav-bg);
-            border-radius: 5px;
-            font-size: 14px;
+            margin: 5px 0;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-btn {
+            padding: 4px 8px;
+            font-size: 12px;
         }
 
         .status-step {
+            padding: 8px;
+            margin: 4px 0;
+            border-radius: 4px;
+            background-color: var(--primary-color);
             display: flex;
             align-items: center;
-            padding: 5px;
-            opacity: 0.7;
+            gap: 8px;
         }
 
         .status-step.active {
-            opacity: 1;
-            color: var(--primary-color);
-        }
-
-        .status-step.complete {
-            opacity: 1;
-            color: #4caf50;
+            background-color: var(--accent-color);
         }
 
         .spinner {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid currentColor;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
             border-top: 2px solid transparent;
             border-radius: 50%;
-            margin-right: 8px;
             animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .preview-modal {
@@ -192,35 +167,33 @@
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
             z-index: 1000;
         }
 
         .preview-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--bg-color);
+            position: relative;
+            width: 80%;
+            height: 80%;
+            margin: 5% auto;
+            background-color: var(--secondary-color);
             padding: 20px;
             border-radius: 8px;
-            max-width: 90%;
-            max-height: 90%;
-            overflow-y: auto;
+            overflow: auto;
         }
 
-        .preview-content img {
-            width: 100%;
-            height: auto;
-            margin-bottom: 10px;
+        #preview-images img {
+            max-width: 100%;
+            margin: 10px 0;
         }
 
         .close-preview {
             position: absolute;
             top: 10px;
             right: 10px;
+            padding: 8px;
             background: none;
             border: none;
             color: var(--text-color);
@@ -228,119 +201,169 @@
             cursor: pointer;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        h3 {
+            color: var(--text-color);
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .no-docs-message {
+            color: #888;
+            font-size: 14px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .preview-container {
+            display: none;
+            margin-top: 20px;
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .preview-container img {
+            width: 100%;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        
+        .preview-container.active {
+            display: block;
+        }
+        
+        .document-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            background: #2d2d2d;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        
+        .document-item:hover {
+            background: #383838;
+        }
+        
+        .preview-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .preview-btn:hover {
+            background: #45a049;
+        }
+        
+        .close-preview {
+            float: right;
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 5px;
+        }
+        
+        .close-preview:hover {
+            color: #4CAF50;
         }
     </style>
 </head>
 <body>
-    <div class="workflow-panel">
-        <div class="workflow-title">Current Workflow</div>
-        <div id="workflow-status">General Chat</div>
-        <div id="documents-list">
-            <h4>Uploaded Documents</h4>
-            <ul id="uploaded-files"></ul>
-        </div>
-        <div id="status-steps"></div>
-    </div>
-
-    <div class="main-content">
-        <div class="chat-container" id="chat-container">
-            <div class="message assistant-message">
-                Hello! I'm your Study Assistant. I can help answer your questions! Upload a document using the attachment button for more context-specific assistance.
+    <div class="container">
+        <div class="sidebar">
+            <div class="workflow-title">Current Workflow</div>
+            <div id="workflow-status">General Chat</div>
+            <div class="documents-section">
+                <h3>Uploaded Documents</h3>
+                <ul id="document-list"></ul>
+                <div id="no-docs-message" class="no-docs-message">No documents uploaded yet</div>
+                <div id="preview-container" class="preview-container"></div>
             </div>
+            <div id="status-steps"></div>
         </div>
 
-        <div class="chat-input">
-            <button id="attach-button" class="attach-button">📎</button>
-            <input type="file" id="file-input" style="display: none;" accept=".pdf" multiple>
-            <input type="text" id="user-input" placeholder="Type your message here...">
-            <button id="send-button">Send</button>
-        </div>
-    </div>
+        <div class="main-content">
+            <div class="chat-container" id="chat-container">
+                <div class="message assistant-message">
+                    Hello! I'm your Study Assistant. I can help answer your questions! Upload a document using the attachment button for more context-specific assistance.
+                </div>
+            </div>
 
-    <div id="preview-modal" class="preview-modal">
-        <div class="preview-content">
-            <button class="close-preview">&times;</button>
-            <div id="preview-images"></div>
+            <div class="input-container">
+                <button id="attach-button" class="attach-button">📎</button>
+                <form id="upload-form" style="display: inline;">
+                    <input type="file" id="file-input" style="display: none;" accept=".pdf">
+                    <span id="upload-status" style="display: none;"></span>
+                </form>
+                <form id="chat-form" style="display: inline;">
+                    <input type="text" id="user-input" placeholder="Type your message here...">
+                    <button type="submit" id="send-button">Send</button>
+                </form>
+            </div>
         </div>
     </div>
 
     <script>
-        let uploadedFiles = new Set();
-        const eventSource = new EventSource('/stream_response');
-        let currentResponse = '';
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadForm = document.getElementById('upload-form');
+            const fileInput = document.getElementById('file-input');
+            const uploadStatus = document.getElementById('upload-status');
+            const documentList = document.getElementById('document-list');
+            const chatForm = document.getElementById('chat-form');
+            const userInput = document.getElementById('user-input');
+            const chatMessages = document.getElementById('chat-container');
+            const previewModal = document.getElementById('preview-modal');
+            const previewContent = document.getElementById('preview-content');
+            const closePreview = document.getElementById('close-preview');
+            const statusSteps = document.getElementById('status-steps');
 
-        function updateStatusSteps(currentStep) {
-            const steps = [
-                { id: 'validating', text: 'Validating Document' },
-                { id: 'converting', text: 'Converting PDF' },
-                { id: 'embedding', text: 'Creating Embeddings' },
-                { id: 'thinking', text: 'Thinking' },
-                { id: 'generating', text: 'Generating Response' }
-            ];
+            let uploadedFiles = new Set();
+            let currentResponse = '';
 
-            const container = document.getElementById('status-steps');
-            container.innerHTML = steps.map(step => `
-                <div class="status-step ${step.id === currentStep ? 'active' : ''}" data-step="${step.id}">
-                    ${step.id === currentStep ? '<div class="spinner"></div>' : ''}
-                    ${step.text}
-                </div>
-            `).join('');
-        }
+            function updateStatusSteps(currentStep) {
+                const steps = [
+                    { id: 'validating', text: 'Validating Document' },
+                    { id: 'converting', text: 'Converting PDF' },
+                    { id: 'embedding', text: 'Creating Embeddings' },
+                    { id: 'complete', text: 'Processing Complete' }
+                ];
 
-        function appendMessage(sender, text, stream = false) {
-            const container = document.getElementById('chat-container');
-            let message = container.querySelector('.message.generating');
-            
-            if (!message) {
-                message = document.createElement('div');
-                message.className = `message ${sender}-message${stream ? ' generating' : ''}`;
-                container.appendChild(message);
+                statusSteps.innerHTML = steps.map(step => `
+                    <div class="status-step ${step.id === currentStep ? 'active' : ''}" data-step="${step.id}">
+                        ${step.id === currentStep ? '<div class="spinner"></div>' : ''}
+                        ${step.text}
+                    </div>
+                `).join('');
             }
-            
-            if (stream) {
-                currentResponse += text;
-                message.textContent = currentResponse;
-            } else {
-                message.textContent = text;
-            }
-            
-            container.scrollTop = container.scrollHeight;
-        }
 
-        function showPreview(filename) {
-            fetch(`/preview/${filename}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        const previewContainer = document.getElementById('preview-images');
-                        previewContainer.innerHTML = data.images.map(
-                            (img, index) => `<img src="data:image/png;base64,${img}" alt="Page ${index + 1}">`
-                        ).join('');
-                        document.getElementById('preview-modal').style.display = 'block';
-                    }
-                });
-        }
+            // Handle file attachment
+            document.getElementById('attach-button').addEventListener('click', function(e) {
+                e.preventDefault();
+                fileInput.click();
+            });
 
-        document.querySelector('.close-preview').addEventListener('click', () => {
-            document.getElementById('preview-modal').style.display = 'none';
-        });
-
-        document.getElementById('attach-button').addEventListener('click', () => {
-            document.getElementById('file-input').click();
-        });
-
-        document.getElementById('file-input').addEventListener('change', async function(e) {
-            const files = e.target.files;
-            for (let file of files) {
+            // Handle file selection
+            fileInput.addEventListener('change', async function(e) {
+                if (this.files.length === 0) return;
+                
+                const file = this.files[0];
                 if (uploadedFiles.has(file.name)) {
                     alert(`${file.name} is already uploaded`);
-                    continue;
+                    return;
                 }
 
+                // Show status
                 updateStatusSteps('validating');
+
                 const formData = new FormData();
                 formData.append('file', file);
 
@@ -350,71 +373,141 @@
                         body: formData
                     });
 
-                    const result = await response.json();
-                    if (result.status === 'complete') {
-                        uploadedFiles.add(file.name);
-                        updateDocumentsList();
-                        appendMessage('assistant', 'Document processed successfully! You can now ask questions about it.');
+                    const data = await response.json();
+                    
+                    if (response.ok && data.status === 'complete') {
+                        // Update status
+                        updateStatusSteps('complete');
+                        
+                        // Add to document list
+                        uploadedFiles.add(data.filename);
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            ${data.filename}
+                            <button onclick="showPreview('${data.filename}')" class="preview-btn">Preview</button>
+                        `;
+                        documentList.appendChild(li);
+                        
+                        // Hide "no documents" message if it exists
+                        const noDocsMsg = document.getElementById('no-docs-message');
+                        if (noDocsMsg) noDocsMsg.style.display = 'none';
                     } else {
-                        appendMessage('assistant', `Error processing ${file.name}: ${result.error}`);
-                    }
-                } catch (error) {
-                    appendMessage('assistant', `Error uploading ${file.name}: ${error}`);
-                }
-            }
-        });
-
-        function updateDocumentsList() {
-            const list = document.getElementById('uploaded-files');
-            list.innerHTML = '';
-            uploadedFiles.forEach(filename => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${filename}</span>
-                    <button class="preview-btn" onclick="showPreview('${filename}')">Preview</button>
-                `;
-                list.appendChild(li);
-            });
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('user-input');
-            const message = input.value.trim();
-            if (!message) return;
-
-            appendMessage('user', message);
-            input.value = '';
-            currentResponse = '';
-
-            const eventSource = new EventSource(`/chat?message=${encodeURIComponent(message)}`);
-            
-            eventSource.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                
-                if (data.status) {
-                    updateStatusSteps(data.status);
-                }
-                
-                if (data.token) {
-                    appendMessage('assistant', data.token, true);
-                    if (data.done) {
-                        eventSource.close();
+                        alert(`Error: ${data.error || 'Failed to upload file'}`);
                         updateStatusSteps(null);
                     }
+                } catch (error) {
+                    alert('Upload failed: ' + error.message);
+                    updateStatusSteps(null);
                 }
-            };
 
-            eventSource.onerror = function() {
-                eventSource.close();
-                updateStatusSteps(null);
-            };
-        }
+                // Clear the file input
+                fileInput.value = '';
+            });
 
-        document.getElementById('send-button').addEventListener('click', sendMessage);
+            // Handle chat form submission
+            chatForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const message = userInput.value.trim();
+                if (!message) return;
 
-        document.getElementById('user-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
+                // Clear input and add user message
+                userInput.value = '';
+                appendMessage('user', message);
+                currentResponse = '';
+
+                try {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            files: Array.from(uploadedFiles)
+                        })
+                    });
+
+                    if (response.ok) {
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+
+                        while (true) {
+                            const { value, done } = await reader.read();
+                            if (done) break;
+
+                            const chunk = decoder.decode(value);
+                            const lines = chunk.split('\n\n');
+                            
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.error) {
+                                        appendMessage('assistant', `Error: ${data.error}`);
+                                        return;
+                                    }
+                                    if (data.token) {
+                                        currentResponse += data.token;
+                                        appendMessage('assistant', currentResponse, true);
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        appendMessage('assistant', 'Sorry, I encountered an error processing your message.');
+                    }
+                } catch (error) {
+                    appendMessage('assistant', 'Sorry, there was an error communicating with the server.');
+                }
+            });
+
+            function appendMessage(sender, text, isStreaming = false) {
+                const container = document.getElementById('chat-container');
+                let messageDiv = isStreaming ? container.querySelector('.message.generating') : null;
+                
+                if (!messageDiv) {
+                    messageDiv = document.createElement('div');
+                    messageDiv.className = `message ${sender}-message${isStreaming ? ' generating' : ''}`;
+                    container.appendChild(messageDiv);
+                }
+                
+                messageDiv.textContent = text;
+                container.scrollTop = container.scrollHeight;
+            }
+
+            // Handle Enter key in chat input
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    chatForm.dispatchEvent(new Event('submit'));
+                }
+            });
+
+            async function showPreview(filename) {
+                try {
+                    const previewContainer = document.getElementById('preview-container');
+                    const response = await fetch(`/preview/${filename}`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        previewContainer.innerHTML = `
+                            <button class="close-preview" onclick="closePreview()">×</button>
+                            <h3>Preview: ${filename}</h3>
+                            ${data.images.map(img => `<img src="data:image/png;base64,${img}" alt="Page">`).join('')}
+                        `;
+                        previewContainer.classList.add('active');
+                    } else {
+                        alert('Failed to load preview');
+                    }
+                } catch (error) {
+                    console.error('Preview error:', error);
+                    alert('Failed to load preview');
+                }
+            }
+
+            function closePreview() {
+                const previewContainer = document.getElementById('preview-container');
+                previewContainer.classList.remove('active');
+                previewContainer.innerHTML = '';
             }
         });
     </script>

@@ -15,8 +15,10 @@ if not OPENAI_API_KEY:
 
 # Model configurations
 MODEL_NAME = "gpt-3.5-turbo"
-EMBEDDING_MODEL = "text-embedding-ada-002"
-CHUNK_SIZE = 1000
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # Local embedding model
+USE_LOCAL_EMBEDDINGS = True  # Set to False to use OpenAI embeddings
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 50
 
 # File storage configuration
 UPLOAD_FOLDER = Path(__file__).parent.parent / "uploads"
