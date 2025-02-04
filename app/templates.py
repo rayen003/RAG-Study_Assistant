@@ -1,4 +1,4 @@
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 
 # Base conversation template that includes chat history
 BASE_CONVERSATION_TEMPLATE = """
@@ -78,6 +78,18 @@ Return ONLY the category name, nothing else.
         ),
         input_variables=["chat_history", "question", "context"]
     ),
+    
+    "qa": ChatPromptTemplate.from_messages([
+        ("system", """You are a helpful AI assistant. Use the following context to answer the question. 
+        If you don't know the answer, just say that you don't know, don't try to make up an answer.
+        
+        Context: {context}
+        
+        Previous conversation:
+        {chat_history}
+        """),
+        ("human", "{question}")
+    ]),
     
     "multimodal": PromptTemplate(
         template=BASE_CONVERSATION_TEMPLATE.replace(

@@ -3,6 +3,10 @@ import os
 import tempfile
 import sys
 from pathlib import Path
+import base64
+import fitz  # PyMuPDF
+from PIL import Image
+import io
 
 # Add the parent directory to Python path for imports
 app_dir = Path(__file__).parent
@@ -25,13 +29,42 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "current_workflow" not in st.session_state:
     st.session_state.current_workflow = "General"
+if "pdf_display" not in st.session_state:
+    st.session_state.pdf_display = None
+if "current_question" not in st.session_state:
+    st.session_state.current_question = None
 
 def get_file_type_info():
     """Return supported file types information."""
     return {
-        'image': ['.png', '.jpg', '.jpeg', '.gif'],
         'document': ['.pdf', '.txt', '.doc', '.docx']
     }
+
+def display_pdf(file_path):
+    """Display PDF pages as images"""
+    doc = fitz.open(file_path)
+    images = []
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        # Increase the resolution for better quality
+        zoom = 2
+        mat = fitz.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=mat)
+        
+        # Convert to PIL Image
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        
+        # Convert to bytes
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+        
+        # Convert to base64
+        img_str = base64.b64encode(img_byte_arr).decode()
+        images.append(f'<img src="data:image/png;base64,{img_str}" style="width:100%; margin-bottom:10px;">')
+    
+    doc.close()
+    return "".join(images)
 
 def main():
     # Set up the Streamlit app with custom styling
@@ -41,124 +74,129 @@ def main():
     st.markdown("""
         <style>
         .stApp {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
-        .workflow-info {
-            padding: 10px;
-            border-radius: 5px;
-            background-color: #f0f2f6;
-            margin: 10px 0;
+        .chat-message {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
         }
-        .file-uploader {
-            border: 2px dashed #4CAF50;
-            border-radius: 10px;
+        .user-message {
+            background-color: #e3f2fd;
+            align-self: flex-end;
+        }
+        .assistant-message {
+            background-color: #f5f5f5;
+            align-self: flex-start;
+        }
+        .pdf-viewer {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+            height: calc(100vh - 150px);
+            overflow-y: auto;
+        }
+        .chat-input {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 100%;
             padding: 20px;
-            text-align: center;
-            margin: 10px 0;
+            background-color: white;
+            border-top: 1px solid #ddd;
+            z-index: 1000;
+        }
+        .chat-container {
+            margin-bottom: 100px;  /* Space for fixed chat input */
+            overflow-y: auto;
+            height: calc(100vh - 200px);
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Main title
-    st.title("🎓 Intelligent Study Assistant")
+    # Create two columns: left for PDF viewer, right for chat
+    col1, col2 = st.columns([1, 2])
 
-    # Sidebar for file upload and workflow info
-    with st.sidebar:
-        st.header("📁 File Upload")
-        st.markdown("### Supported File Types")
+    with col1:
+        st.header("📁 Document Viewer")
         
-        # Display supported file types
-        file_types = get_file_type_info()
-        for category, extensions in file_types.items():
-            st.markdown(f"**{category.title()}**: {', '.join(extensions)}")
-        
-        # File uploader with drag and drop
+        # File uploader
         uploaded_file = st.file_uploader(
-            "Drag and drop files here",
-            type=[ext[1:] for exts in file_types.values() for ext in exts],
-            help="Upload your study materials here"
+            "Upload PDF",
+            type=['pdf'],
+            help="Upload your PDF document"
         )
 
-        # Display current workflow
-        st.markdown("### 🔄 Current Workflow")
-        st.markdown(f"**Active**: {st.session_state.current_workflow}")
-
-    # Main chat interface
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.header("💬 Chat Interface")
-        
-        # Display chat history
-        for message in st.session_state.chat_history:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-
-        # Process uploaded file
-        file_input = None
-        if uploaded_file is not None:
-            # Create a temporary file
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
+        # Display PDF viewer
+        if uploaded_file:
+            # Save uploaded file temporarily
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
                 tmp_file.write(uploaded_file.getvalue())
                 tmp_file_path = tmp_file.name
-
-            # Process the file
-            with open(tmp_file_path, 'rb') as f:
-                file_content = f.read()
-                file_input = process_file(file_content, uploaded_file.name)
-                if file_input:
-                    st.success(f"File processed: {uploaded_file.name}")
-                else:
-                    st.warning("Unsupported file type")
-
-            # Clean up
-            os.unlink(tmp_file_path)
-
-        # Get user input
-        user_input = st.chat_input("Ask a question about your studies...")
-        
-        if user_input:
-            # Add user message to chat history
-            st.session_state.chat_history.append({"role": "user", "content": user_input})
-
-            # Determine workflow
-            workflow_type = "Multimodal" if file_input or detect_multimodal_query(user_input) else "General"
-            st.session_state.current_workflow = workflow_type
-
-            # Execute workflow and get response
-            response = execute_workflow(st.session_state.memory, user_input, file_input)
-
-            # Add assistant response to chat history
-            st.session_state.chat_history.append({
-                "role": "assistant",
-                "content": response["answer"]
-            })
-
-            st.rerun()
+            
+            # Create a container for the PDF viewer with scrolling
+            st.markdown('<div class="pdf-viewer">', unsafe_allow_html=True)
+            st.markdown(display_pdf(tmp_file_path), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Store file path for processing
+            st.session_state.current_file = tmp_file_path
 
     with col2:
-        st.header("ℹ️ Assistant Info")
+        st.header("💬 Chat Interface")
         
-        # Display workflow information
-        st.markdown("""
-        ### Workflow Types
+        # Create a container for chat messages
+        chat_container = st.container()
         
-        1. **General Workflow**
-           - Handles text-based queries
-           - Provides detailed explanations
-           - Uses conversation history
-        
-        2. **Multimodal Workflow**
-           - Processes images and documents
-           - Analyzes visual content
-           - Handles file-based queries
-        
-        The assistant automatically switches between workflows based on:
-        - Uploaded files
-        - Query content
-        - User intentions
-        """)
+        with chat_container:
+            # Display chat history
+            for message in st.session_state.chat_history:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
+
+        # Create a container for the chat input at the bottom
+        with st.container():
+            st.markdown('<div class="chat-input">', unsafe_allow_html=True)
+            # Chat input
+            if question := st.chat_input("Ask a question about your document"):
+                # Store the current question
+                st.session_state.current_question = question
+                
+                # Display user message immediately
+                with chat_container:
+                    with st.chat_message("user"):
+                        st.markdown(question)
+                
+                # Add to chat history
+                st.session_state.chat_history.append({"role": "user", "content": question})
+                
+                # Process the question if we have a file
+                if hasattr(st.session_state, 'current_file'):
+                    with chat_container:
+                        with st.chat_message("assistant"):
+                            message_placeholder = st.empty()
+                            
+                            # Get the response from the multimodal workflow
+                            response = execute_workflow(
+                                st.session_state.memory,
+                                question,
+                                st.session_state.current_file
+                            )
+                            
+                            # Update the message in real-time
+                            message_placeholder.markdown(response["answer"])
+                            
+                            # Add to chat history
+                            st.session_state.chat_history.append(
+                                {"role": "assistant", "content": response["answer"]}
+                            )
+                else:
+                    st.warning("Please upload a document first.")
+            st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Study Assistant</title>
+    <style>
+        :root {
+            --primary-color: #10a37f;
+            --bg-color: #343541;
+            --sidebar-bg: #202123;
+            --nav-bg: #2d2d35;
+            --chat-bg: #444654;
+            --text-color: #ececf1;
+            --border-color: #40414f;
+            --secondary-text: #c5c5d2;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+        }
+
+        .workflow-panel {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            padding: 20px;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .workflow-title {
+            font-size: 14px;
+            color: var(--text-color);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #documents-list {
+            margin-top: 20px;
+        }
+
+        #uploaded-files {
+            list-style: none;
+            padding: 0;
+        }
+
+        #uploaded-files li {
+            padding: 8px;
+            margin: 4px 0;
+            background: var(--nav-bg);
+            border-radius: 4px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-btn {
+            background: var(--primary-color);
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .preview-btn:hover {
+            background: #0d8c6d;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            max-width: 80%;
+            line-height: 1.5;
+        }
+
+        .user-message {
+            background: var(--primary-color);
+            margin-left: auto;
+        }
+
+        .assistant-message {
+            background: var(--chat-bg);
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 20px;
+            gap: 10px;
+            background: var(--nav-bg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background: var(--chat-bg);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: var(--primary-color);
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0d8c6d;
+        }
+
+        .attach-button {
+            background: none;
+            color: var(--secondary-text);
+            font-size: 20px;
+            padding: 10px;
+        }
+
+        .attach-button:hover {
+            background: var(--chat-bg);
+        }
+
+        #status-steps {
+            margin: 10px 0;
+            padding: 10px;
+            background: var(--nav-bg);
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .status-step {
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            opacity: 0.7;
+        }
+
+        .status-step.active {
+            opacity: 1;
+            color: var(--primary-color);
+        }
+
+        .status-step.complete {
+            opacity: 1;
+            color: #4caf50;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid currentColor;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: spin 1s linear infinite;
+        }
+
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+
+        .preview-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-color);
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+
+        .preview-content img {
+            width: 100%;
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+        .close-preview {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="workflow-panel">
+        <div class="workflow-title">Current Workflow</div>
+        <div id="workflow-status">General Chat</div>
+        <div id="documents-list">
+            <h4>Uploaded Documents</h4>
+            <ul id="uploaded-files"></ul>
+        </div>
+        <div id="status-steps"></div>
+    </div>
+
+    <div class="main-content">
+        <div class="chat-container" id="chat-container">
+            <div class="message assistant-message">
+                Hello! I'm your Study Assistant. I can help answer your questions! Upload a document using the attachment button for more context-specific assistance.
+            </div>
+        </div>
+
+        <div class="chat-input">
+            <button id="attach-button" class="attach-button">📎</button>
+            <input type="file" id="file-input" style="display: none;" accept=".pdf" multiple>
+            <input type="text" id="user-input" placeholder="Type your message here...">
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+
+    <div id="preview-modal" class="preview-modal">
+        <div class="preview-content">
+            <button class="close-preview">&times;</button>
+            <div id="preview-images"></div>
+        </div>
+    </div>
+
+    <script>
+        let uploadedFiles = new Set();
+        const eventSource = new EventSource('/stream_response');
+        let currentResponse = '';
+
+        function updateStatusSteps(currentStep) {
+            const steps = [
+                { id: 'validating', text: 'Validating Document' },
+                { id: 'converting', text: 'Converting PDF' },
+                { id: 'embedding', text: 'Creating Embeddings' },
+                { id: 'thinking', text: 'Thinking' },
+                { id: 'generating', text: 'Generating Response' }
+            ];
+
+            const container = document.getElementById('status-steps');
+            container.innerHTML = steps.map(step => `
+                <div class="status-step ${step.id === currentStep ? 'active' : ''}" data-step="${step.id}">
+                    ${step.id === currentStep ? '<div class="spinner"></div>' : ''}
+                    ${step.text}
+                </div>
+            `).join('');
+        }
+
+        function appendMessage(sender, text, stream = false) {
+            const container = document.getElementById('chat-container');
+            let message = container.querySelector('.message.generating');
+            
+            if (!message) {
+                message = document.createElement('div');
+                message.className = `message ${sender}-message${stream ? ' generating' : ''}`;
+                container.appendChild(message);
+            }
+            
+            if (stream) {
+                currentResponse += text;
+                message.textContent = currentResponse;
+            } else {
+                message.textContent = text;
+            }
+            
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showPreview(filename) {
+            fetch(`/preview/${filename}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const previewContainer = document.getElementById('preview-images');
+                        previewContainer.innerHTML = data.images.map(
+                            (img, index) => `<img src="data:image/png;base64,${img}" alt="Page ${index + 1}">`
+                        ).join('');
+                        document.getElementById('preview-modal').style.display = 'block';
+                    }
+                });
+        }
+
+        document.querySelector('.close-preview').addEventListener('click', () => {
+            document.getElementById('preview-modal').style.display = 'none';
+        });
+
+        document.getElementById('attach-button').addEventListener('click', () => {
+            document.getElementById('file-input').click();
+        });
+
+        document.getElementById('file-input').addEventListener('change', async function(e) {
+            const files = e.target.files;
+            for (let file of files) {
+                if (uploadedFiles.has(file.name)) {
+                    alert(`${file.name} is already uploaded`);
+                    continue;
+                }
+
+                updateStatusSteps('validating');
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    if (result.status === 'complete') {
+                        uploadedFiles.add(file.name);
+                        updateDocumentsList();
+                        appendMessage('assistant', 'Document processed successfully! You can now ask questions about it.');
+                    } else {
+                        appendMessage('assistant', `Error processing ${file.name}: ${result.error}`);
+                    }
+                } catch (error) {
+                    appendMessage('assistant', `Error uploading ${file.name}: ${error}`);
+                }
+            }
+        });
+
+        function updateDocumentsList() {
+            const list = document.getElementById('uploaded-files');
+            list.innerHTML = '';
+            uploadedFiles.forEach(filename => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>${filename}</span>
+                    <button class="preview-btn" onclick="showPreview('${filename}')">Preview</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            appendMessage('user', message);
+            input.value = '';
+            currentResponse = '';
+
+            const eventSource = new EventSource(`/chat?message=${encodeURIComponent(message)}`);
+            
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.status) {
+                    updateStatusSteps(data.status);
+                }
+                
+                if (data.token) {
+                    appendMessage('assistant', data.token, true);
+                    if (data.done) {
+                        eventSource.close();
+                        updateStatusSteps(null);
+                    }
+                }
+            };
+
+            eventSource.onerror = function() {
+                eventSource.close();
+                updateStatusSteps(null);
+            };
+        }
+
+        document.getElementById('send-button').addEventListener('click', sendMessage);
+
+        document.getElementById('user-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

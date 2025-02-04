@@ -1,84 +1,107 @@
 # Study Assistant
 
-A smart study assistant powered by RAG (Retrieval Augmented Generation) that helps students better understand their study materials. This application uses OpenAI's GPT-4 model and embeddings to provide intelligent responses to questions about uploaded PDF documents.
+A powerful AI-powered study assistant that helps you understand and interact with your documents.
 
 ## Features
 
-- PDF document upload and processing
-- Intelligent question answering using RAG (Retrieval Augmented Generation)
-- Interactive chat interface using Streamlit
-- Context-aware responses based on document content
-- Modern and user-friendly interface
-- Support for multiple file types (PDF, images, text documents)
-- Automatic workflow selection based on query type
-- Conversation memory for contextual responses
+- 📚 Multi-document support
+- 🔍 Semantic search and retrieval
+- 💬 Interactive chat interface
+- 📊 Real-time processing status
+- 👀 Document preview functionality
+- 🎨 Modern dark theme UI
 
-## Prerequisites
+## Performance Metrics
 
-- Python 3.8+
-- OpenAI API key
+Document processing pipeline performance:
+- Document Loading: ~0.2s
+- Text Splitting: <0.1s
+- Embedding Generation: ~2.5s
+- Query Response: 1.2-2.3s
 
 ## Setup
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/rayen003/RAG-Powered-Study-Assistant.git
-   cd RAG-Powered-Study-Assistant
-   ```
+1. Clone the repository
+```bash
+git clone https://github.com/yourusername/Study-Assistant-Clean.git
+cd Study-Assistant-Clean
+```
 
-2. Create and activate a virtual environment (recommended):
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+2. Create a virtual environment and activate it
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
 
-4. Set up environment variables:
-   - Copy `.env.example` to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   - Edit `.env` and add your OpenAI API key:
-     ```
-     OPENAI_API_KEY=your-api-key-here
-     ```
+4. Create a `.env` file in the root directory with your OpenAI API key:
+```
+OPENAI_API_KEY=your_api_key_here
+```
 
 ## Usage
 
-1. Start the application:
-   ```bash
-   streamlit run app/main.py
-   ```
+1. Start the server:
+```bash
+python app/web_app.py
+```
 
-2. Open your browser and navigate to `http://localhost:8501`
+2. Open your browser and navigate to `http://localhost:5001`
 
-3. Use the application:
-   - Upload documents or images using the sidebar
-   - Ask questions in the chat interface
-   - The system will automatically choose between:
-     - General workflow for text-based queries
-     - Multimodal workflow for file-based queries
+3. Upload your documents using the attachment button
+
+4. Start chatting with your documents!
 
 ## Project Structure
 
 ```
-study-assistant/
+Study-Assistant-Clean/
 ├── app/
-│   ├── main.py          # Streamlit app entry point
-│   ├── rag.py           # RAG pipeline implementation
-│   ├── config.py        # Configuration settings
-│   ├── memory_manager.py # Memory management
-│   ├── templates.py     # Prompt templates
-│   └── workflows/       # Workflow implementations
-│       ├── general_workflow.py
-│       └── multimodal_workflow.py
-├── .env.example         # Example environment variables
-└── requirements.txt     # Project dependencies
+│   ├── templates/
+│   │   └── index.html      # Web interface
+│   ├── config.py           # Configuration settings
+│   ├── memory_manager.py   # Chat history management
+│   ├── rag.py             # Document processing and retrieval
+│   ├── test_processing.py # Performance testing
+│   └── web_app.py         # Flask server
+├── uploads/               # Document storage
+├── .env                  # Environment variables
+└── requirements.txt      # Python dependencies
 ```
+
+## Testing
+
+Run the test suite to verify document processing:
+```bash
+python app/test_processing.py
+```
+
+This will test:
+- Document loading and splitting
+- Embedding generation
+- Query retrieval
+- Processing performance
+
+## Recent Updates
+
+- Added multi-document support
+- Implemented document preview functionality
+- Added real-time processing status indicators
+- Updated UI with modern dark theme
+- Added performance testing and metrics
+- Fixed document chunking and retrieval
+
+## Next Steps
+
+- [ ] Optimize chunk size for better retrieval
+- [ ] Implement local embeddings using sentence-transformers
+- [ ] Update deprecated LangChain imports
+- [ ] Add batch processing for multiple documents
+- [ ] Implement caching for faster responses
 
 ## Contributing
 

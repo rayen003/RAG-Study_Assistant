@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 # Get the absolute path to the .env file
-env_path = Path(__file__).parent / '.env'
+env_path = Path(__file__).parent.parent / '.env'
 
 # Load environment variables from .env file
 load_dotenv(dotenv_path=env_path)
@@ -14,6 +14,10 @@ if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY not found in environment variables. Please create a .env file with your API key.")
 
 # Model configurations
-MODEL_NAME = "gpt-4"  # or "gpt-3.5-turbo" for a more economical option
+MODEL_NAME = "gpt-3.5-turbo"
 EMBEDDING_MODEL = "text-embedding-ada-002"
 CHUNK_SIZE = 1000
+
+# File storage configuration
+UPLOAD_FOLDER = Path(__file__).parent.parent / "uploads"
+UPLOAD_FOLDER.mkdir(exist_ok=True)
