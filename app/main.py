@@ -18,153 +18,230 @@ import logging
 
 # Now import our local modules
 try:
-    from app.memory_manager import MemoryManager
+    from app.chat_manager import ChatManager
     from app.rag import process_file, load_vector_store
-    from app.config import MODEL_NAME
+    from app.config import MODEL_NAME, UPLOAD_FOLDER
     from app.templates import TEMPLATES
 except ModuleNotFoundError:
-    from memory_manager import MemoryManager
+    from chat_manager import ChatManager
     from rag import process_file, load_vector_store
-    from config import MODEL_NAME
+    from config import MODEL_NAME, UPLOAD_FOLDER
     from templates import TEMPLATES
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG, 
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Configure upload folder
-UPLOAD_FOLDER = Path(tempfile.gettempdir()) / 'study_assistant_uploads'
-UPLOAD_FOLDER.mkdir(exist_ok=True)
-
-# Initialize session state
-if 'memory_manager' not in st.session_state:
-    st.session_state.memory_manager = MemoryManager()
-if 'uploaded_files' not in st.session_state:
-    st.session_state.uploaded_files = set()
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
+def save_uploaded_file(uploaded_file):
+    """Save the uploaded file to the upload folder."""
+    try:
+        # Ensure upload folder exists
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        
+        # Generate a unique filename
+        file_path = os.path.join(UPLOAD_FOLDER, uploaded_file.name)
+        
+        # Save the file
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        
+        logger.info(f"File saved: {file_path}")
+        return file_path
+    except Exception as e:
+        logger.error(f"Error saving file: {e}")
+        st.error(f"Error saving file: {e}")
+        return None
 
 def display_pdf(file_path):
     """Convert PDF pages to images for display"""
-    doc = fitz.open(file_path)
+    pdf_document = fitz.open(file_path)
     images = []
-    for page_num in range(len(doc)):
-        page = doc[page_num]
-        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+    
+    for page_num in range(pdf_document.page_count):
+        page = pdf_document[page_num]
+        # Increase zoom factor for larger preview (2 means 200% of original size)
+        zoom = 2
+        mat = fitz.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=mat)
+        
+        # Convert to PIL Image
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        images.append(img)
-    doc.close()
+        
+        # Convert to bytes for Streamlit
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format="PNG")
+        images.append(img_bytes)
+    
     return images
 
 def main():
-    st.set_page_config(
-        page_title="Study Assistant",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
+    st.set_page_config(layout="wide", page_title="Study Assistant", initial_sidebar_state="collapsed")
 
-    # Custom CSS for dark theme and better styling
+    # Custom CSS for clean layout
     st.markdown("""
         <style>
-        .stApp {
-            background-color: #1a1a1a;
-            color: white;
-        }
-        .uploadedFile {
-            background-color: #2d2d2d;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 5px 0;
+        .main > div {
+            padding: 0 1rem;
         }
         .chat-message {
-            padding: 10px;
-            border-radius: 5px;
-            margin: 5px 0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 0.5rem 0;
+            width: 100%;
         }
         .user-message {
-            background-color: #2d2d2d;
+            background-color: #2D2D2D;
         }
         .assistant-message {
-            background-color: #4CAF50;
+            background-color: #0E4429;
+        }
+        .thinking-message {
+            background-color: #1E1E1E;
+            color: #888;
+            font-style: italic;
+        }
+        .document-section {
+            background-color: #1E1E1E;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .chat-container {
+            background-color: #1E1E1E;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            height: calc(100vh - 120px);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+        .chat-input {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: #2D2D2D;
+            border-radius: 0.5rem;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Sidebar for document upload and management
-    with st.sidebar:
-        st.title("Study Assistant")
+    # Initialize session state
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+    if 'chat_manager' not in st.session_state:
+        st.session_state.chat_manager = ChatManager(MODEL_NAME)
+    if 'thinking' not in st.session_state:
+        st.session_state.thinking = False
+
+    # Create two columns: left for document, right for chat
+    left_col, right_col = st.columns([1, 1])
+
+    with left_col:
+        st.subheader("Document Preview")
         
-        # File uploader
-        uploaded_file = st.file_uploader("Upload PDF Document", type=['pdf'])
-        
+        # File uploader in the document section
+        uploaded_file = st.file_uploader(
+            "Upload a PDF file",
+            type=["pdf"],
+            key="file_uploader",
+            label_visibility="collapsed"
+        )
+
         if uploaded_file:
-            file_path = Path(UPLOAD_FOLDER) / uploaded_file.name
-            
-            if uploaded_file.name not in st.session_state.uploaded_files:
+            file_path = save_uploaded_file(uploaded_file)
+            if file_path:
                 with st.spinner("Processing document..."):
-                    # Save the file
-                    with open(file_path, "wb") as f:
-                        f.write(uploaded_file.getvalue())
-                    
-                    # Process the file
-                    if process_file(str(file_path)):
-                        st.session_state.uploaded_files.add(uploaded_file.name)
-                        st.success("Document processed successfully!")
-                    else:
-                        st.error("Failed to process document")
-        
-        # Display uploaded documents
-        if st.session_state.uploaded_files:
-            st.subheader("Uploaded Documents")
-            for filename in st.session_state.uploaded_files:
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.write(filename)
-                with col2:
-                    if st.button("Preview", key=f"preview_{filename}"):
-                        file_path = Path(UPLOAD_FOLDER) / filename
-                        if file_path.exists():
-                            images = display_pdf(str(file_path))
+                    # Process document and store the vector store path
+                    vector_store_path = process_file(file_path)
+                    if vector_store_path:
+                        # Load the vector store
+                        vector_store = load_vector_store(vector_store_path)
+                        if vector_store:
+                            st.session_state.vector_store = vector_store
+                            st.success("Document processed successfully!")
+                            
+                            # Display PDF preview
+                            images = display_pdf(file_path)
                             for img in images:
                                 st.image(img, use_column_width=True)
-        else:
-            st.info("No documents uploaded yet")
+                        else:
+                            st.error("Failed to load the document store")
+                    else:
+                        st.error("Failed to process the document")
 
-    # Main chat interface
-    st.header("Chat")
-    
-    # Initialize chat history if not exists
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-
-    # Display chat history
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
-
-    # Chat input
-    if prompt := st.chat_input("Type your message here..."):
-        # Add user message to chat history and display it
-        st.session_state.chat_history.append({"role": "user", "content": prompt})
+    with right_col:
+        st.subheader("Chat")
         
-        # Display user message
-        with st.chat_message("user"):
-            st.write(prompt)
+        # Chat messages container
+        chat_placeholder = st.container()
         
-        # Display assistant's "thinking" message
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                # Get response from memory manager
-                response = st.session_state.memory_manager.chat(
-                    user_input=prompt,
-                    file_path=str(Path(UPLOAD_FOLDER) / next(iter(st.session_state.uploaded_files))) if st.session_state.uploaded_files else None
-                )
+        # Display messages
+        with chat_placeholder:
+            for message in st.session_state.messages:
+                message_class = "user-message" if message["role"] == "user" else "assistant-message"
+                st.markdown(f"""
+                    <div class="chat-message {message_class}">
+                        {message["content"]}
+                    </div>
+                """, unsafe_allow_html=True)
+            
+            # Show thinking message if processing
+            if st.session_state.get('processing', False):
+                st.markdown("""
+                    <div class="chat-message thinking-message">
+                        Thinking...
+                    </div>
+                """, unsafe_allow_html=True)
+
+        # Chat input
+        with st.container():
+            cols = st.columns([6, 1])
+            with cols[0]:
+                # Initialize the key in session state if it doesn't exist
+                if "user_input_key" not in st.session_state:
+                    st.session_state.user_input_key = 0
                 
-                # Display the response
-                st.write(response)
-        
-        # Add assistant response to chat history
-        st.session_state.chat_history.append({"role": "assistant", "content": response})
+                user_input = st.text_input(
+                    "Your message",
+                    key=f"user_input_{st.session_state.user_input_key}",
+                    label_visibility="collapsed"
+                )
+            with cols[1]:
+                send_button = st.button("Send", use_container_width=True)
+
+        if send_button and user_input:
+            if not st.session_state.get('processing', False):
+                st.session_state.processing = True
+                
+                # Add user message
+                st.session_state.messages.append({"role": "user", "content": user_input})
+                
+                try:
+                    # Get context from vector store if available
+                    context = ""
+                    if hasattr(st.session_state, 'vector_store') and st.session_state.vector_store:
+                        # Get relevant chunks from vector store
+                        results = st.session_state.vector_store.similarity_search(user_input, k=3)
+                        context = "\n".join([doc.page_content for doc in results])
+                    
+                    # Get AI response with context
+                    response = st.session_state.chat_manager.get_response(user_input, context)
+                    # Add AI response
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+                
+                # Clear input by incrementing the key
+                st.session_state.user_input_key += 1
+                # Clear processing state
+                st.session_state.processing = False
+                st.rerun()
 
 if __name__ == "__main__":
     main()

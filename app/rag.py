@@ -1,23 +1,24 @@
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from typing import List, Optional, Union, Dict
-from langchain_core.output_parsers.string import StrOutputParser
-from pydantic import BaseModel
-import importlib
-import os
-import sys
-import time
 import logging
+import os
+import pickle
+import shutil
 from pathlib import Path
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
+from typing import Optional, List, Dict, Any
+import sys
+from pydantic import BaseModel
+
 import hashlib
+import streamlit as st
+
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_core.documents import Document
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG,
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Add the parent directory to Python path for imports
@@ -28,14 +29,12 @@ if str(root_dir) not in sys.path:
 
 # Try both import styles
 try:
-    from app.config import MODEL_NAME, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP, USE_LOCAL_EMBEDDINGS
+    from app.config import MODEL_NAME, EMBEDDING_MODEL, USE_LOCAL_EMBEDDINGS
     from app.templates import TEMPLATES
-    from app.memory_manager import MemoryManager
     from app.embeddings import LocalEmbeddings
 except ModuleNotFoundError:
-    from config import MODEL_NAME, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP, USE_LOCAL_EMBEDDINGS
+    from config import MODEL_NAME, EMBEDDING_MODEL, USE_LOCAL_EMBEDDINGS
     from templates import TEMPLATES
-    from memory_manager import MemoryManager
     from embeddings import LocalEmbeddings
 
 # Supported file extensions and their corresponding workflows
@@ -51,10 +50,12 @@ WORKFLOW_MAP = {
 }
 
 class FileInput(BaseModel):
-    """Represents a file input with its content and metadata"""
-    content: bytes
-    file_type: str
-    filename: str
+    """Input schema for file processing."""
+    file_path: str
+
+class VectorStoreOutput(BaseModel):
+    """Output schema for vector store operations."""
+    vector_store_path: str
 
 def get_document_hash(file_path):
     """Generate a unique hash for the document."""
@@ -63,59 +64,117 @@ def get_document_hash(file_path):
 
 def get_embeddings():
     """Get the embedding model."""
-    return HuggingFaceEmbeddings(
-        model_name=EMBEDDING_MODEL,
-        model_kwargs={'device': 'cpu'},
-        encode_kwargs={'normalize_embeddings': True}  # Ensure consistent normalization
-    )
-
-def process_file(file_path):
-    """Process a file and create a vector store."""
     try:
-        # Load and split the document
-        loader = PyPDFLoader(file_path)
-        documents = loader.load()
-        
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=CHUNK_SIZE,
-            chunk_overlap=CHUNK_OVERLAP
+        embeddings = HuggingFaceEmbeddings(
+            model_name=EMBEDDING_MODEL,
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}  # Ensure consistent normalization
         )
-        chunks = text_splitter.split_documents(documents)
+        return embeddings
+    except Exception as e:
+        logger.error(f"Error initializing embeddings: {e}")
+        raise
+
+def process_file(file_path: str) -> Optional[str]:
+    """
+    Process a PDF file and create embeddings.
+    
+    Args:
+        file_path (str): Path to the PDF file
         
-        if not chunks:
-            logger.error("No text chunks extracted from document")
-            return False
-            
+    Returns:
+        Optional[str]: Path to the vector store if successful, None otherwise
+    """
+    try:
+        file_input = FileInput(file_path=file_path)
+        logger.debug(f"Starting file processing")
+        logger.debug(f"File path: {file_input.file_path}")
+        logger.debug(f"File exists: {os.path.exists(file_input.file_path)}")
+        
+        # Validate file
+        if not os.path.exists(file_input.file_path):
+            logger.error(f"File does not exist: {file_input.file_path}")
+            return None
+        
+        # Load PDF
+        loader = PyMuPDFLoader(file_input.file_path)
+        documents = loader.load()
+        logger.debug(f"Loaded {len(documents)} pages")
+        
+        # Split into chunks
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200
+        )
+        splits = text_splitter.split_documents(documents)
+        logger.debug(f"Created {len(splits)} text chunks")
+        
+        # Validate splits
+        if not splits:
+            logger.error("No document splits created")
+            return None
+        
         # Get embeddings
         embeddings = get_embeddings()
         
-        # Create vector store
-        vector_store = FAISS.from_documents(chunks, embeddings)
+        # Create vector store directory
+        vector_store_path = Path("/Users/rayengallas/Desktop/Coding_projects/Study-Assistant-Clean/vector_store").absolute() / Path(file_input.file_path).stem
+        vector_store_path.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"Vector store directory: {vector_store_path}")
         
-        # Save the vector store
-        vector_store_path = file_path + "_faiss"
-        vector_store.save_local(vector_store_path)
-        
-        return True
+        # Create and persist vector store
+        try:
+            vector_store = Chroma.from_documents(
+                documents=splits,
+                embedding=embeddings,
+                persist_directory=str(vector_store_path)
+            )
+            vector_store.persist()
+            logger.debug("Vector store created and persisted successfully")
+            
+            result = VectorStoreOutput(vector_store_path=str(vector_store_path))
+            return result.vector_store_path
+            
+        except Exception as e:
+            logger.error(f"Error creating vector store: {e}", exc_info=True)
+            return None
         
     except Exception as e:
-        logger.error(f"Error processing file: {str(e)}")
-        return False
+        logger.error(f"Unexpected error in process_file: {e}", exc_info=True)
+        return None
 
-def load_vector_store(file_path):
-    """Load a vector store for a file."""
+def load_vector_store(file_path: str) -> Optional[Chroma]:
+    """
+    Load the vector store from disk.
+    
+    Args:
+        file_path (str): Path to the vector store directory
+        
+    Returns:
+        Optional[Chroma]: Loaded vector store if successful, None otherwise
+    """
     try:
-        vector_store_path = file_path + "_faiss"
-        if not os.path.exists(vector_store_path):
-            logger.error(f"Vector store not found at {vector_store_path}")
+        logger.debug(f"Loading vector store from: {file_path}")
+        
+        # Validate path
+        if not os.path.exists(file_path):
+            logger.error(f"Vector store directory not found: {file_path}")
             return None
             
+        # Initialize embeddings
         embeddings = get_embeddings()
-        vector_store = FAISS.load_local(vector_store_path, embeddings)
+        
+        # Load vector store
+        vector_store = Chroma(
+            persist_directory=file_path,
+            embedding_function=embeddings
+        )
+        
+        logger.debug("Vector store loaded successfully")
         return vector_store
         
     except Exception as e:
-        logger.error(f"Error loading vector store: {str(e)}")
+        logger.error(f"Error loading vector store: {e}", exc_info=True)
         return None
 
 def detect_multimodal_query(query: str) -> bool:
@@ -129,7 +188,7 @@ def detect_multimodal_query(query: str) -> bool:
     logger.info(f"Query type detection completed in {time.time() - start_time:.2f}s")
     return result
 
-def execute_workflow(memory, question: str, file_path: str = None):
+def execute_workflow(question: str, file_path: str = None):
     """Execute the appropriate workflow based on input type."""
     start_time = time.time()
     try:
@@ -144,7 +203,7 @@ def execute_workflow(memory, question: str, file_path: str = None):
                 logger.error("Failed to load vector store")
                 return {
                     "answer": "Error processing request",
-                    "chat_history": memory.load_memory_variables({}).get("chat_history", "")
+                    "chat_history": ""
                 }
             
             retriever = vector_store.as_retriever()
@@ -156,35 +215,28 @@ def execute_workflow(memory, question: str, file_path: str = None):
             response = chain.invoke({
                 "question": question,
                 "context": context,
-                "chat_history": memory.load_memory_variables({}).get("chat_history", "")
+                "chat_history": ""
             })
         else:
             # Simple chat without document context
             response = llm.invoke([{"role": "user", "content": question}]).content
         
-        # Update memory
-        memory.save_context(
-            {"question": question},
-            {"answer": response}
-        )
-        
         logger.info(f"Workflow completed in {time.time() - start_time:.2f}s")
         return {
             "answer": response,
-            "chat_history": memory.load_memory_variables({}).get("chat_history", "")
+            "chat_history": ""
         }
         
     except Exception as e:
         logger.error(f"Error in workflow: {str(e)}")
         return {
             "answer": f"Error processing request: {str(e)}",
-            "chat_history": memory.load_memory_variables({}).get("chat_history", "")
+            "chat_history": ""
         }
 
 def main():
     """Main function for handling queries and file processing."""
     try:
-        memory = MemoryManager()
         print("\nWelcome to the Study Assistant! Type 'quit' to exit.")
         
         while True:
@@ -203,14 +255,15 @@ def main():
                     with open(file_path, 'rb') as f:
                         file_content = f.read()
                         file_input = FileInput(
-                            content=file_content,
-                            file_type="document",
-                            filename=file_path
+                            file_path=file_path
                         )
-                        process_file(file_path)
+                        vector_store_path = process_file(file_path)
                 
                 # Execute workflow and get response
-                response = execute_workflow(memory, question, file_path)
+                if file_path and os.path.exists(file_path):
+                    response = execute_workflow(question, vector_store_path)
+                else:
+                    response = execute_workflow(question)
                 print("\nResponse:", response["answer"])
                 
             except EOFError:
@@ -228,6 +281,11 @@ def main():
         return 1
     
     return 0
+
+# Constants
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 200
+VECTOR_STORE_DIR = Path("/Users/rayengallas/Desktop/Coding_projects/Study-Assistant-Clean/vector_store").absolute()
 
 if __name__ == "__main__":
     exit(main())
