@@ -14,7 +14,8 @@ if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY not found in environment variables. Please create a .env file with your API key.")
 
 # Model configurations
-MODEL_NAME = "gpt-3.5-turbo"
+MODEL_NAME = "gpt-4-1106-preview"  # Using GPT-4 for better comprehension
+MODEL_TEMPERATURE = 0.7  # Higher temperature for more detailed and creative responses
 EMBEDDING_MODEL = "text-embedding-ada-002"
 CHUNK_SIZE = 1000
 
