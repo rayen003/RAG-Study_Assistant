@@ -1,8 +1,8 @@
-# Study Assistant
+# Study Assistant:
 
 A powerful AI-powered study assistant that helps you understand and interact with your documents.
 
-## Features
+## Features:
 
 - 📚 Multi-document support
 - 🔍 Semantic search and retrieval
@@ -11,7 +11,7 @@ A powerful AI-powered study assistant that helps you understand and interact wit
 - 👀 Document preview functionality
 - 🎨 Modern dark theme UI
 
-## Performance Metrics
+## Performance Metrics:
 
 Document processing pipeline performance:
 - Document Loading: ~0.2s
@@ -19,7 +19,7 @@ Document processing pipeline performance:
 - Embedding Generation: ~2.5s
 - Query Response: 1.2-2.3s
 
-## Setup
+## Setup:
 
 1. Clone the repository
 ```bash
@@ -73,7 +73,7 @@ Study-Assistant-Clean/
 └── requirements.txt      # Python dependencies
 ```
 
-## Testing
+## Testing:
 
 Run the test suite to verify document processing:
 ```bash
@@ -86,7 +86,7 @@ This will test:
 - Query retrieval
 - Processing performance
 
-## Recent Updates
+## Recent Updates:
 
 - Added multi-document support
 - Implemented document preview functionality
@@ -95,7 +95,7 @@ This will test:
 - Added performance testing and metrics
 - Fixed document chunking and retrieval
 
-## Next Steps
+## Next Steps:
 
 - [ ] Optimize chunk size for better retrieval
 - [ ] Implement local embeddings using sentence-transformers
@@ -103,7 +103,7 @@ This will test:
 - [ ] Add batch processing for multiple documents
 - [ ] Implement caching for faster responses
 
-## Contributing
+## Contributing:
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
