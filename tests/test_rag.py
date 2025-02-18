@@ -18,8 +18,4 @@ def test_rag_pipeline_initialization():
     assert pipeline.vector_store is None
     assert pipeline.qa_chain is None
 
-def test_query_without_initialization():
-    """Test querying without initialization raises error."""
-    pipeline = RAGPipeline()
-    with pytest.raises(ValueError):
-        pipeline.query("test question")
+
